@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+env:
+  COPILOT_AGENT_FIREWALL_ENABLED: 'false'
 jobs:
   copilot-setup-steps:
     runs-on: windows-latest
     permissions:
       contents: read
-    env:
-      COPILOT_AGENT_FIREWALL_ENABLED: 'false'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
