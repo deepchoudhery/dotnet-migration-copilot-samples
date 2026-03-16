@@ -1,16 +1,15 @@
 using Microsoft.EntityFrameworkCore;
-using System.Configuration;
+using Microsoft.EntityFrameworkCore.Design;
 
 namespace ContosoUniversity.Data
 {
-    public static class SchoolContextFactory
+    public class SchoolContextFactory : IDesignTimeDbContextFactory<SchoolContext>
     {
-        public static SchoolContext Create()
+        public SchoolContext CreateDbContext(string[] args)
         {
-            var connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
             var optionsBuilder = new DbContextOptionsBuilder<SchoolContext>();
-            optionsBuilder.UseSqlServer(connectionString);
-            
+            optionsBuilder.UseSqlServer("Data Source=(LocalDb)\\MSSQLLocalDB;Initial Catalog=ContosoUniversityNoAuthEFCore;Integrated Security=True;MultipleActiveResultSets=True");
+
             return new SchoolContext(optionsBuilder.Options);
         }
     }

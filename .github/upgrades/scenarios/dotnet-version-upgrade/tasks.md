@@ -10,5 +10,5 @@ Upgrading ContosoUniversity from .NET Framework 4.8 to .NET 10.0 using the All-a
 
 - ✅ 01-sdk-conversion: Convert project to SDK-style
 - ✅ 02-packages: Update NuGet packages
-- 🔲 03-code-migration: Migrate incompatible APIs and application code
+- 🔄 03-code-migration: Migrate incompatible APIs and application code
 - 🔲 04-validation: Build and test validation

@@ -1,6 +1,6 @@
 using System;
-using System.Messaging;
-using System.Configuration;
+using System.Linq;
+using ContosoUniversity.Data;
 using ContosoUniversity.Models;
 using Newtonsoft.Json;
 
@@ -8,27 +8,11 @@ namespace ContosoUniversity.Services
 {
     public class NotificationService
     {
-        private readonly string _queuePath;
-        private readonly MessageQueue _queue;
+        private readonly SchoolContext _db;
 
-        public NotificationService()
+        public NotificationService(SchoolContext db)
         {
-            // Get queue path from configuration or use default
-            _queuePath = ConfigurationManager.AppSettings["NotificationQueuePath"] ?? @".\Private$\ContosoUniversityNotifications";
-            
-            // Ensure the queue exists
-            if (!MessageQueue.Exists(_queuePath))
-            {
-                _queue = MessageQueue.Create(_queuePath);
-                _queue.SetPermissions("Everyone", MessageQueueAccessRights.FullControl);
-            }
-            else
-            {
-                _queue = new MessageQueue(_queuePath);
-            }
-            
-            // Configure queue formatter
-            _queue.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+            _db = db;
         }
 
         public void SendNotification(string entityType, string entityId, EntityOperation operation, string userName = null)
@@ -51,18 +35,11 @@ namespace ContosoUniversity.Services
                     IsRead = false
                 };
 
-                var jsonMessage = JsonConvert.SerializeObject(notification);
-                var message = new Message(jsonMessage)
-                {
-                    Label = $"{entityType} {operation}",
-                    Priority = MessagePriority.Normal
-                };
-
-                _queue.Send(message);
+                _db.Notifications.Add(notification);
+                _db.SaveChanges();
             }
             catch (Exception ex)
             {
-                // Log error but don't break the main operation
                 System.Diagnostics.Debug.WriteLine($"Failed to send notification: {ex.Message}");
             }
         }
@@ -71,14 +48,18 @@ namespace ContosoUniversity.Services
         {
             try
             {
-                var message = _queue.Receive(TimeSpan.FromSeconds(1));
-                var jsonContent = message.Body.ToString();
-                return JsonConvert.DeserializeObject<Notification>(jsonContent);
-            }
-            catch (MessageQueueException ex) when (ex.MessageQueueErrorCode == MessageQueueErrorCode.IOTimeout)
-            {
-                // No messages available
-                return null;
+                var notification = _db.Notifications
+                    .Where(n => !n.IsRead)
+                    .OrderBy(n => n.CreatedAt)
+                    .FirstOrDefault();
+
+                if (notification != null)
+                {
+                    notification.IsRead = true;
+                    _db.SaveChanges();
+                }
+
+                return notification;
             }
             catch (Exception ex)
             {
@@ -89,14 +70,18 @@ namespace ContosoUniversity.Services
 
         public void MarkAsRead(int notificationId)
         {
-            // In a real implementation, you might want to store notifications in database as well
-            // for persistence and tracking read status
+            var notification = _db.Notifications.Find(notificationId);
+            if (notification != null)
+            {
+                notification.IsRead = true;
+                _db.SaveChanges();
+            }
         }
 
         private string GenerateMessage(string entityType, string entityId, string entityDisplayName, EntityOperation operation)
         {
-            var displayText = !string.IsNullOrWhiteSpace(entityDisplayName) 
-                ? $"{entityType} '{entityDisplayName}'" 
+            var displayText = !string.IsNullOrWhiteSpace(entityDisplayName)
+                ? $"{entityType} '{entityDisplayName}'"
                 : $"{entityType} (ID: {entityId})";
 
             switch (operation)
@@ -114,7 +99,7 @@ namespace ContosoUniversity.Services
 
         public void Dispose()
         {
-            _queue?.Dispose();
+            // SchoolContext is managed by DI container; no manual disposal needed
         }
     }
 }
